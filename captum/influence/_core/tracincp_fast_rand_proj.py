@@ -312,21 +312,43 @@ class TracInCPFast(TracInCPBase):
 
             learning_rate = self.checkpoints_load_func(self.model, checkpoint)
 
-            input_jacobians, input_layer_inputs = _basic_computation_tracincp_fast(
-                self,
-                test_batch[0:-1],
-                test_batch[-1],
-                self.test_loss_fn,
-                self.test_reduction_type,
-            )
+            try:
+                input_jacobians, input_layer_inputs = _basic_computation_tracincp_fast(
+                    self,
+                    test_batch[0:-1],
+                    test_batch[-1],
+                    self.test_loss_fn,
+                    self.test_reduction_type,
+                )
 
-            src_jacobian, src_layer_input = _basic_computation_tracincp_fast(
-                self,
-                train_batch[0:-1],
-                train_batch[-1],
-                self.loss_fn,
-                self.reduction_type,
-            )
+                src_jacobian, src_layer_input = _basic_computation_tracincp_fast(
+                    self,
+                    train_batch[0:-1],
+                    train_batch[-1],
+                    self.loss_fn,
+                    self.reduction_type,
+                )
+             except:
+                ## batch is from torchtext ##
+                train_input = train_batch.text
+                train_label = train_batch.label
+                test_input = test_batch.text
+                test_label = test_batch.label
+                input_jacobians, input_layer_inputs = _basic_computation_tracincp_fast(
+                    self,
+                    *test_input,
+                    test_label,
+                    self.test_loss_fn,
+                    self.test_reduction_type,
+                )
+
+                src_jacobian, src_layer_input = _basic_computation_tracincp_fast(
+                    self,
+                    *train_input,
+                    train_label,
+                    self.loss_fn,
+                    self.reduction_type,
+                )
             return (
                 _tensor_batch_dot(
                     input_jacobians, src_jacobian
@@ -582,13 +604,25 @@ class TracInCPFast(TracInCPBase):
 
             for batch in _inputs:
 
-                batch_jacobian, batch_layer_input = _basic_computation_tracincp_fast(
-                    self,
-                    batch[0:-1],
-                    batch[-1],
-                    self.loss_fn,
-                    self.reduction_type,
-                )
+                try:
+                    batch_jacobian, batch_layer_input = _basic_computation_tracincp_fast(
+                        self,
+                        batch[0:-1],
+                        batch[-1],
+                        self.loss_fn,
+                        self.reduction_type,
+                    )
+                except:
+                    ## batch is from torchtext ##
+                    batch_input = batch.text
+                    batch_label = batch.label
+                    batch_jacobian, batch_layer_input = _basic_computation_tracincp_fast(
+                        self,
+                        *batch_input,
+                        batch_label,
+                        self.loss_fn,
+                        self.reduction_type,
+                    )
 
                 checkpoint_contribution.append(
                     torch.sum(batch_jacobian**2, dim=1)
@@ -1297,13 +1331,26 @@ class TracInCPFastRandProj(TracInCPFast):
             self.checkpoints_load_func(self.model, next(iter(self.checkpoints)))
 
             batch = next(iter(dataloader))
-            batch_jacobians, batch_layer_inputs = _basic_computation_tracincp_fast(
-                self,
-                batch[0:-1],
-                batch[-1],
-                self.loss_fn,
-                self.reduction_type,
-            )
+            
+            try:
+                batch_jacobians, batch_layer_inputs = _basic_computation_tracincp_fast(
+                    self,
+                    batch[0:-1],
+                    batch[-1],
+                    self.loss_fn,
+                    self.reduction_type,
+                )
+            except:
+                ## batch is from torchtext ##
+                batch_input = batch.text
+                batch_label = batch.label
+                batch_jacobians, batch_layer_inputs = _basic_computation_tracincp_fast(
+                    self,
+                    *batch_input,
+                    batch_label,
+                    self.loss_fn,
+                    self.reduction_type,
+                )
 
             jacobian_dim = batch_jacobians.shape[
                 1
@@ -1469,14 +1516,25 @@ class TracInCPFastRandProj(TracInCPFast):
                 # *output* of the last fully-connected layer. `layer_inputs` is a 2D
                 # tensor, where each row is the *input* to the last fully-connected
                 # layer. For both, the length is the number of examples in `batch`
-                input_jacobians, layer_inputs = _basic_computation_tracincp_fast(
-                    self,
-                    batch[0:-1],
-                    batch[-1],
-                    self.test_loss_fn,
-                    self.test_reduction_type,
-                )
-
+                try:
+                    input_jacobians, layer_inputs = _basic_computation_tracincp_fast(
+                        self,
+                        batch[0:-1],
+                        batch[-1],
+                        self.test_loss_fn,
+                        self.test_reduction_type,
+                    )
+                except:
+                    ## batch is from torchtext ##
+                    batch_input = batch.text
+                    batch_label = batch.label
+                    input_jacobians, layer_inputs = _basic_computation_tracincp_fast(
+                        self,
+                        *batch_input,
+                        batch_label,
+                        self.test_loss_fn,
+                        self.test_reduction_type,
+                    )
                 # if doing projection, project those two quantities
                 if project:
 
